@@ -3,7 +3,6 @@
   <h1>Bilibili Intelligent CrawlerUltra</h1>
 </div>
 
----
 ## 介绍:
 - Bicu是模仿aicu.cc写的b站用户评论爬取和查询系统
 - 支持爬取视频,动态的全部评论,并自动保存进clickhouse
