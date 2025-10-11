@@ -1,7 +1,6 @@
 <div align="center">
   <img src="/images/logo.svg" alt="BICU Logo" width="400">
   <h1>Bilibili Intelligent CrawlerUltra</h1>
-  <blockquote>bilibili用户评论爬取和查询系统,支持docker一键部署和运行</blockquote>
 </div>
 
 ---
