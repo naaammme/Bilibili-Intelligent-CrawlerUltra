@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bilibili爬虫管理</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        .log-container {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            padding: 10px;
+            border-radius: 4px;
+            max-height: 1000px;
+            overflow-y: auto;
+        }
+        .log-entry { margin-bottom: 3px; }
+        .log-level-INFO { color: #4ec9b0; }
+        .log-level-WARNING { color: #dcdcaa; }
+        .log-level-ERROR { color: #f48771; }
+        .log-timestamp { color: #858585; }
+        .device-info {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 13px;
+            margin-top: 10px;
+        }
+        .device-info code {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        .stat-card {
+            transition: transform 0.2s;
+        }
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+        .error-box {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 4px;
+            padding: 10px;
+            font-size: 13px;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">Bilibili爬虫管理</span>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <div class="col-md-2">
+                <div class="list-group">
+                    <a href="#" class="list-group-item list-group-item-action active" onclick="showTab('crawler')">爬虫管理</a>
+                    <a href="#" class="list-group-item list-group-item-action" onclick="showTab('logs')">爬虫日志</a>
+                    <a href="#" class="list-group-item list-group-item-action" onclick="showTab('stats')">数据统计</a>
+                </div>
+            </div>
+
+            <div class="col-md-10">
+                <div id="crawlerTab">
+                    <h4>爬虫管理</h4>
+
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">最小延迟(秒)</label>
+                                    <input type="number" id="minDelay" class="form-control" value="1.0" step="0.1">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">最大延迟(秒)</label>
+                                    <input type="number" id="maxDelay" class="form-control" value="3.0" step="0.1">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <input type="file" id="taskFile" class="form-control mb-2" accept=".txt">
+                            <textarea id="tasks" class="form-control" rows="6" placeholder="BV号/av号/动态ID (每行一个)"></textarea>
+                            <div class="mt-2">
+                                <button class="btn btn-primary" onclick="start()">开始</button>
+                                <button class="btn btn-danger" onclick="stop()">停止</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-body">
+                            <p>状态: <span id="status" class="badge bg-secondary">未运行</span></p>
+                            <div id="progress"></div>
+                            <div class="progress mb-3">
+                                <div id="progressBar" class="progress-bar" style="width:0%"></div>
+                            </div>
+
+                            <div id="deviceInfo" class="device-info d-none">
+                                <strong>设备信息</strong>
+                                <div class="mt-2">
+                                    <span class="text-muted">BUVID:</span> <code id="deviceBuvid">-</code> |
+                                    <span class="text-muted">设备:</span> <code id="deviceModel">-</code> |
+                                    <span class="text-muted">FP:</span> <code id="deviceFp">-</code>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="logsTab" class="d-none">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4>爬虫日志</h4>
+                        <div>
+                            <button class="btn btn-sm btn-success" onclick="toggleAuto()" id="autoBtn">开启自动刷新</button>
+                            <button class="btn btn-sm btn-primary" onclick="loadLogs()">刷新</button>
+                            <button class="btn btn-sm btn-warning" onclick="clearLogs()">清空</button>
+                        </div>
+                    </div>
+                    <div class="log-container" id="logs">暂无日志</div>
+                </div>
+
+                <div id="statsTab" class="d-none">
+                    <h4>数据统计</h4>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <div class="card stat-card">
+                                <div class="card-body">
+                                    <h6 class="text-muted">总评论数</h6>
+                                    <h3 id="totalComments" class="mb-0">-</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card stat-card">
+                                <div class="card-body">
+                                    <h6 class="text-muted">总用户数</h6>
+                                    <h3 id="totalUsers" class="mb-0">-</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card stat-card">
+                                <div class="card-body">
+                                    <h6 class="text-muted">最新评论</h6>
+                                    <p id="latestComment" class="mb-0">-</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <h5>Kafka & 消费者</h5>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-3">
+                            <div class="card stat-card">
+                                <div class="card-body">
+                                    <h6 class="text-muted">Kafka状态</h6>
+                                    <p id="kafkaStatus" class="mb-0">-</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card stat-card">
+                                <div class="card-body">
+                                    <h6 class="text-muted">消费者状态</h6>
+                                    <p id="consumerStatus" class="mb-0">-</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card stat-card">
+                                <div class="card-body">
+                                    <h6 class="text-muted">待处理消息</h6>
+                                    <h4 id="kafkaPending" class="mb-0">-</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card stat-card">
+                                <div class="card-body">
+                                    <h6 class="text-muted">消费者延迟</h6>
+                                    <h4 id="consumerLag" class="mb-0">-</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-3">
+                            <div class="card stat-card border-primary">
+                                <div class="card-body">
+                                    <h6 class="text-muted">已消费</h6>
+                                    <h4 id="consumed" class="mb-0 text-primary">-</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card stat-card border-success">
+                                <div class="card-body">
+                                    <h6 class="text-muted">已插入</h6>
+                                    <h4 id="inserted" class="mb-0 text-success">-</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card stat-card border-danger">
+                                <div class="card-body">
+                                    <h6 class="text-muted">失败数量</h6>
+                                    <h4 id="failed" class="mb-0 text-danger">-</h4>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card stat-card">
+                                <div class="card-body">
+                                    <h6 class="text-muted">最后插入时间</h6>
+                                    <p id="lastInsertTime" class="mb-0 small">-</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="errorBox" class="d-none mb-3">
+                        <h6 class="text-danger">最后错误信息</h6>
+                        <div class="error-box">
+                            <code id="lastError" class="text-danger"></code>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="loadStats()">刷新统计</button>
+                    <button class="btn btn-secondary" onclick="toggleStatsAuto()" id="statsAutoBtn">开启自动刷新</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API = '/scraper', BACKEND = '/api';
+        let statusTimer, logsTimer, statsTimer, autoRefresh = false, statsAutoRefresh = false;
+
+        document.getElementById('taskFile').onchange = async (e) => {
+            const file = e.target.files[0];
+            if (file) document.getElementById('tasks').value = await file.text();
+        };
+
+        function showTab(tab) {
+            ['crawlerTab', 'logsTab', 'statsTab'].forEach(id =>
+                document.getElementById(id).classList.add('d-none')
+            );
+            document.querySelectorAll('.list-group-item').forEach(el =>
+                el.classList.remove('active')
+            );
+
+            const tabs = {crawler: 0, logs: 1, stats: 2};
+            document.getElementById(tab + 'Tab').classList.remove('d-none');
+            document.querySelectorAll('.list-group-item')[tabs[tab]].classList.add('active');
+
+            if (tab === 'logs') loadLogs();
+            if (tab === 'stats') loadStats();
+        }
+
+        async function start() {
+            const tasks = document.getElementById('tasks').value.trim().split('\n').filter(t => t.trim());
+            if (!tasks.length) return alert('请输入任务');
+
+            try {
+                await axios.post(`${API}/start`, {
+                    min_delay: +document.getElementById('minDelay').value,
+                    max_delay: +document.getElementById('maxDelay').value,
+                    tasks
+                });
+                alert('已启动');
+                startPolling();
+            } catch (e) {
+                alert('启动失败: ' + (e.response?.data?.detail || e.message));
+            }
+        }
+
+        async function stop() {
+            try {
+                await axios.post(`${API}/stop`);
+                alert('已停止');
+                stopPolling();
+            } catch (e) {
+                alert('停止失败');
+            }
+        }
+
+        async function updateStatus() {
+            const {data} = await axios.get(`${API}/status`);
+            const status = document.getElementById('status');
+            const bar = document.getElementById('progressBar');
+            const deviceInfo = document.getElementById('deviceInfo');
+
+            if (data.is_running) {
+                status.textContent = '运行中';
+                status.className = 'badge bg-success';
+                const p = data.progress;
+                const pct = p.total ? (p.processed / p.total * 100) : 0;
+                document.getElementById('progress').innerHTML =
+                    `总${p.total} | 完成${p.completed} | 失败${p.failed} | 剩余${p.remaining}`;
+                bar.style.width = pct + '%';
+                bar.textContent = pct.toFixed(1) + '%';
+
+                if (data.device) {
+                    deviceInfo.classList.remove('d-none');
+                    document.getElementById('deviceBuvid').textContent = data.device.buvid;
+                    document.getElementById('deviceModel').textContent = data.device.device;
+                    document.getElementById('deviceFp').textContent = data.device.fp;
+                }
+            } else {
+                status.textContent = '未运行';
+                status.className = 'badge bg-secondary';
+                document.getElementById('progress').innerHTML = '';
+                bar.style.width = '0%';
+
+                if (data.device) {
+                    deviceInfo.classList.remove('d-none');
+                    document.getElementById('deviceBuvid').textContent = data.device.buvid;
+                    document.getElementById('deviceModel').textContent = data.device.device;
+                    document.getElementById('deviceFp').textContent = data.device.fp;
+                }
+
+                stopPolling();
+            }
+        }
+
+        function startPolling() {
+            if (statusTimer) clearInterval(statusTimer);
+            statusTimer = setInterval(updateStatus, 3000);
+            updateStatus();
+        }
+
+        function stopPolling() {
+            if (statusTimer) {
+                clearInterval(statusTimer);
+                statusTimer = null;
+            }
+        }
+
+        async function loadLogs() {
+            try {
+                const {data} = await axios.get(`${API}/logs?limit=100`);
+                const container = document.getElementById('logs');
+
+                if (!data.logs.length) {
+                    container.innerHTML = '<div class="text-center text-muted">暂无日志</div>';
+                    return;
+                }
+
+                container.innerHTML = data.logs.map(log =>
+                    `<div class="log-entry">
+                        <span class="log-timestamp">[${log.timestamp}]</span>
+                        <span class="log-level-${log.level}">[${log.level}]</span>
+                        ${escapeHtml(log.message)}
+                    </div>`
+                ).join('');
+
+                container.scrollTop = container.scrollHeight;
+            } catch (e) {
+                console.error('加载日志失败', e);
+            }
+        }
+
+        function toggleAuto() {
+            autoRefresh = !autoRefresh;
+            const btn = document.getElementById('autoBtn');
+
+            if (autoRefresh) {
+                btn.textContent = '关闭自动刷新';
+                btn.className = 'btn btn-sm btn-danger';
+                logsTimer = setInterval(loadLogs, 3000);
+                loadLogs();
+            } else {
+                btn.textContent = '开启自动刷新';
+                btn.className = 'btn btn-sm btn-success';
+                if (logsTimer) clearInterval(logsTimer);
+            }
+        }
+
+        function toggleStatsAuto() {
+            statsAutoRefresh = !statsAutoRefresh;
+            const btn = document.getElementById('statsAutoBtn');
+
+            if (statsAutoRefresh) {
+                btn.textContent = '关闭自动刷新';
+                btn.className = 'btn btn-danger';
+                statsTimer = setInterval(loadStats, 5000);
+                loadStats();
+            } else {
+                btn.textContent = '开启自动刷新';
+                btn.className = 'btn btn-secondary';
+                if (statsTimer) clearInterval(statsTimer);
+            }
+        }
+
+        async function clearLogs() {
+            if (!confirm('确认清空?')) return;
+            try {
+                await axios.delete(`${API}/logs`);
+                loadLogs();
+            } catch (e) {
+                alert('清空失败');
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function loadStats() {
+            try {
+                const {data} = await axios.get(`${BACKEND}/stats`);
+
+                document.getElementById('totalComments').textContent = data.clickhouse.total_comments.toLocaleString();
+                document.getElementById('totalUsers').textContent = data.clickhouse.total_users.toLocaleString();
+                document.getElementById('latestComment').textContent = data.clickhouse.latest_comment_time || '-';
+
+                document.getElementById('kafkaStatus').innerHTML = data.kafka.kafka_connected
+                    ? '<span class="badge bg-success">已连接</span>'
+                    : '<span class="badge bg-danger">未连接</span>';
+
+                document.getElementById('consumerStatus').innerHTML = data.consumer.is_running
+                    ? '<span class="badge bg-success">运行中</span>'
+                    : '<span class="badge bg-secondary">已停止</span>';
+
+                document.getElementById('kafkaPending').textContent = (data.kafka.pending_messages || 0).toLocaleString();
+                document.getElementById('consumerLag').textContent = (data.kafka.consumer_lag || 0).toLocaleString();
+
+                document.getElementById('consumed').textContent = (data.consumer.total_consumed || 0).toLocaleString();
+                document.getElementById('inserted').textContent = (data.consumer.total_inserted || 0).toLocaleString();
+                document.getElementById('failed').textContent = (data.consumer.total_failed || 0).toLocaleString();
+
+                const lastInsertTime = data.consumer.last_insert_time;
+                document.getElementById('lastInsertTime').textContent = lastInsertTime
+                    ? new Date(lastInsertTime).toLocaleString('zh-CN')
+                    : '-';
+
+                const errorBox = document.getElementById('errorBox');
+                const lastError = data.consumer.last_error;
+                if (lastError) {
+                    errorBox.classList.remove('d-none');
+                    document.getElementById('lastError').textContent = lastError;
+                } else {
+                    errorBox.classList.add('d-none');
+                }
+            } catch (e) {
+                console.error('加载统计失败', e);
+            }
+        }
+
+        window.onload = () => updateStatus();
+    </script>
+</body>
+</html>

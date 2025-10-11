@@ -1,0 +1,16 @@
+# FastAPI和相关组件
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+pydantic==2.10.3
+
+# HTTP
+httpx[http2]==0.28.1
+
+# Kafka 客户端
+confluent-kafka==2.11.1
+
+# Protobuf (需要预先编译好的 .py 文件)
+protobuf>=5.27.0
+
+# 工具库
+python-multipart==0.0.18
