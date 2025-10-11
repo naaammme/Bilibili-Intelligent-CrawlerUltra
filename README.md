@@ -43,9 +43,9 @@ Linux:
 编辑 `.env` 文件,根据需要修改配置:
 
 ```bash
-# - CLICKHOUSE_PASSWORD: ClickHouse密码
-# - BATCH_SIZE: 批量插入大小(默认:50000)
-# - DEFAULT_MIN_DELAY/DEFAULT_MAX_DELAY: 爬虫延迟(默认:1.0-3.0秒)
+# CLICKHOUSE_PASSWORD: ClickHouse密码
+# BATCH_SIZE: 批量插入大小(默认:50000)
+# DEFAULT_MIN_DELAY/DEFAULT_MAX_DELAY: 爬虫延迟(默认:1.0-3.0秒)
 ```
 
 ### 3. 启动所有服务
@@ -85,9 +85,7 @@ docker-compose up -d
 ### 支持的输入格式
 
 - **BV号**: `BV1xx4y1x7xx` (视频)
-- **av号**: `av123456` (视频)
-- **动态ID(长)**: `1071500774534545411` (动态,>15位数字)
-- **动态ID(短)**: `123456` (动态,普通数字)
+- **动态ID**: `1071500774534545411` (动态)
 
 ### 用户查询
 
