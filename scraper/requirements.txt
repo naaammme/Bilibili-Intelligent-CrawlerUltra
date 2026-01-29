@@ -13,4 +13,4 @@ confluent-kafka==2.11.1
 protobuf>=5.27.0
 
 # 工具库
-python-multipart==0.0.18
+python-multipart==0.0.22
